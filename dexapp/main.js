@@ -1,26 +1,27 @@
+// This line of code initializes the moralis server
 const serverUrl ="https://fapzmhntkfj9.usemoralis.com:2053/server";
 const appId = "jwO0TBPJjLiZXPNeNQ8c65eHnefNfU9dOtl5Cnsz";
 Moralis.start({ serverUrl, appId });
 
-Moralis.enableWeb3();
-
+// these are global variables that are included in the functions below 
 let currentTrade = {};
 let currentSelectSide;
 let tokens;
 
+//functions
 async function init() {
     await Moralis.initPlugins();
     await listAvailableTokens();
     currentUser = Moralis.User.current();
     if(currentUser){
-        document.getElementById("swap_button").disabled = false;
+        document.getElementById("swap_button").disabled;
     }
 }
 
 async function listAvailableTokens() {
     const result = await Moralis.Plugins.oneInch.getSupportedTokens({
-        chain: 'eth', // The blockchain you want to use (eth/bsc/polygon)
-      });
+        chain: 'bsc',
+    });
 
       tokens = result.tokens;
       let parent = document.getElementById("token_list");
@@ -59,30 +60,40 @@ function renderInterface(){
     }
 }
 
+
 async function login() {
-  try {
-      currentUser = Moralis.User.current();
-        if(!currentUser){
-          currentUser = await Moralis.authenticate();
-    }
+    const user = await Moralis.authenticate({ 
+        provider: "walletconnect",
+        chainId: 56,
+        mobileLinks: [
+          "rainbow",
+          "metamask",
+          "argent",
+          "trust",
+          "imtoken",
+          "pillar",
+        ],
+        signingMessage: "welcome to PAPILO", 
+    });
     document.getElementById("swap_button").disabled = false;
-  } catch (error) {
-    console.log(error);
-  }
+    console.log(user);
 }
 
 async function logOut() {
   await Moralis.User.logOut();
+  document.getElementById("swap_button").disabled = true;
   console.log("logged out");
 }
+
+
 function openModal(side){
     currentSelectSide = side;
     document.getElementById("token_modal").style.display = "block";
 }
+
 function closeModal(){
     document.getElementById("token_modal").style.display = "none";
 }
-//|
 
 async function getQuote() {
     if(!currentTrade.from || !currentTrade.to || !document.getElementById("from_amount").value) return;
@@ -92,7 +103,7 @@ async function getQuote() {
     );
 
     const quote = await Moralis.Plugins.oneInch.quote({
-        chain: 'eth', 
+        chain: 'bsc', 
         fromTokenAddress:  currentTrade.from.address, 
         toTokenAddress: currentTrade.to.address, 
         amount: amount,
@@ -109,7 +120,7 @@ async function trySwap(){
     );
     if(currentTrade.from.symbol !== "ETH"){
         const allowance = await Moralis.Plugins.oneInch.hasAllowance({
-            chain: 'eth',
+            chain: 'bsc',
             fromTokenAddress: currentTrade.from.address,
             fromAddress: address,
             amount: amount,
@@ -117,30 +128,31 @@ async function trySwap(){
         console.log(allowance);
         if(!allowance){
                 await Moralis.Plugins.oneInch.approve({
-                  chain: 'eth', // The blockchain you want to use (eth/bsc/polygon)
-                  tokenAddress: currentTrade.from.address, // The token you want to swap
-                  fromAddress: address, // Your wallet address
+                  chain: 'bsc',
+                  tokenAddress: currentTrade.from.address,
+                  fromAddress: address,
                 });
               }
         }
     let reciept = await doSwap(address, amount);
     alert("Swap Complete");    
 }
-        //trade
 
 function doSwap(userAddress, amount) {
     return Moralis.Plugins.oneInch.swap({
-        chain: 'eth', // The blockchain you want to use (eth/bsc/polygon)
-        fromTokenAddress: currentTrade.from.address, // The token you want to swap
-        toTokenAddress: currentTrade.to.address, // The token you want to receive
+        chain: 'bsc',
+        fromTokenAddress: currentTrade.from.address,
+        toTokenAddress: currentTrade.to.address,
         amount: amount,
-        fromAddress: userAddress, // Your wallet address
+        fromAddress: userAddress,
         slippage: 1,
     });
 }
         
 init();
 
+
+// These are lines of code that runs the functions created above
 document.getElementById("modal_close").onclick = closeModal;
 document.getElementById("from_token_select").onclick = (() => {openModal("from")});
 document.getElementById("to_token_select").onclick = (() => {openModal("to")});
